@@ -87,7 +87,7 @@ public final class RecorderScreen extends GuiScreen {
 
     private void select(String name) {
         selected = name;
-        try { preview = controller.inspect(name); setStatus("Duplo clique para carregar. F8 interrompe a reproducao.", false); }
+        try { preview = controller.inspect(name); setStatus("Duplo clique para carregar. " + controller.stopKeyName() + " interrompe a reproducao.", false); }
         catch (IOException | IllegalArgumentException exception) { preview = null; setStatus("Arquivo invalido: " + exception.getMessage(), true); }
     }
 
@@ -140,7 +140,8 @@ public final class RecorderScreen extends GuiScreen {
         ClickGuiRenderer.rounded(px + 22, py + 20, 6, 6, 3, ACCENT);
         ui.title.draw("Input Recorder", px + 44, py + 8, TEXT);
         if (!compact) ui.small.draw("CAPTURE  /  PLAYBACK", px + 45, py + 29, MUTED);
-        ui.small.draw("F10", px + pw - 65, py + 17, MUTED);
+        String menuShortcut = ui.small.trim(controller.menuKeyName(), Math.max(0, pw - 210));
+        ui.small.draw(menuShortcut, px + pw - 40 - ui.small.width(menuShortcut), py + 17, MUTED);
         boolean closeHover = inside(mouseX, mouseY, px + pw - 31, py + 9, 22, 22);
         ClickGuiRenderer.rounded(px + pw - 31, py + 9, 22, 22, 6, closeHover ? 0xFF3A2939 : 0xFF252634);
         ClickGuiRenderer.line(px + pw - 24, py + 16, px + pw - 16, py + 24, closeHover ? 0xFFFF8FAD : MUTED);
@@ -217,7 +218,9 @@ public final class RecorderScreen extends GuiScreen {
             ui.small.draw("PONTO INICIAL", x, y, MUTED);
             ui.small.draw(ui.small.trim(String.format(Locale.ROOT, "X %.1f  Y %.1f  Z %.1f", preview.startX, preview.startY, preview.startZ), w), x, y + 15, 0xFFB9BDD0);
             Recording loaded = controller.getLoadedRecording();
-            if (y + 48 < footer - 24 && loaded != null && loaded.name.equals(selected)) ui.small.draw("Pronta para F7", x, y + 36, ACCENT);
+            if (y + 48 < footer - 24 && loaded != null && loaded.name.equals(selected)) {
+                ui.small.draw(ui.small.trim("Pronta para " + controller.playKeyName(), w), x, y + 36, ACCENT);
+            }
         }
     }
 

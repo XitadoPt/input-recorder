@@ -39,7 +39,7 @@ public final class RecorderCommand extends CommandBase {
                 for (int i = 0; i < Math.min(names.size(), 30); i++) controller.message(names.get(i));
                 if (names.size() > 30) controller.message("Mostrando 30 de " + names.size() + "; veja config/inputrecorder/recordings.");
             } else {
-                controller.message("F6 gravar/salvar | F7 reproduzir | F8 parar | F9 loop | F10 menu.");
+                controller.message(controller.controlsHelp());
                 controller.message(getCommandUsage(sender));
                 controller.message("Grava o jogo a 20 ticks/s, mesmo sem foco; abrir menus ou sair do mundo encerra a sessao.");
             }

@@ -30,7 +30,7 @@ As teclas podem ser alteradas em **Opções → Controles → Input Recorder**. 
 | `/rec loop status` | Consultar se o loop está ativado |
 | `/rec stop` | Parar e salvar, quando estiver gravando |
 | `/rec list` | Listar gravações, mais recentes primeiro |
-| `/rec load ponte` | Selecionar a gravação para o F7 |
+| `/rec load ponte` | Selecionar a gravação para o atalho de reprodução |
 | `/rec help` | Mostrar ajuda |
 
 O comando também aceita `/recorder`. Use Tab para completar nomes. Nomes aceitam letras sem acentos, números, `_` e `-`, até 64 caracteres. Gravações existentes não são sobrescritas.

@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.settings.GameSettings;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.MathHelper;
@@ -96,6 +97,21 @@ public final class RecorderController {
     }
 
     public boolean isLoopEnabled() { return loopEnabled; }
+    String recordKeyName() { return keyName(recordKey); }
+    String playKeyName() { return keyName(playKey); }
+    String stopKeyName() { return keyName(stopKey); }
+    String loopKeyName() { return keyName(loopKey); }
+    String menuKeyName() { return keyName(menuKey); }
+
+    private static String keyName(KeyBinding binding) {
+        return GameSettings.getKeyDisplayString(binding.getKeyCode());
+    }
+
+    String controlsHelp() {
+        return recordKeyName() + " gravar/salvar | " + playKeyName() + " reproduzir | "
+                + stopKeyName() + " parar | " + loopKeyName() + " loop | " + menuKeyName() + " menu.";
+    }
+
     Recording getLoadedRecording() { return latest; }
     Recording inspect(String name) throws IOException { return store.load(name); }
 
@@ -105,11 +121,11 @@ public final class RecorderController {
 
     public void setLoop(boolean enabled) {
         loopEnabled = enabled;
-        message("Loop " + (enabled ? "ativado. F7 reproduz ate voce parar." : "desativado. A reproducao termina no fim do ciclo atual."));
+        message("Loop " + (enabled ? "ativado. " + playKeyName() + " reproduz ate voce parar." : "desativado. A reproducao termina no fim do ciclo atual."));
     }
 
     public void toggleLoop() { setLoop(!loopEnabled); }
-    public void loopStatus() { message("Loop: " + (loopEnabled ? "ativado" : "desativado") + ". F9 para alternar."); }
+    public void loopStatus() { message("Loop: " + (loopEnabled ? "ativado" : "desativado") + ". " + loopKeyName() + " para alternar."); }
     public List<String> list() throws IOException { return store.list(); }
     public void load(String name) throws IOException { latest = store.load(name); message("Carregada: " + name); }
 
@@ -163,7 +179,7 @@ public final class RecorderController {
         sessionPlayer = mc.thePlayer;
         allowBackgroundSession();
         mode = Mode.RECORDING;
-        message("Gravando " + name + ". F6 ou F8 para salvar e parar.");
+        message("Gravando " + name + ". " + recordKeyName() + " ou " + stopKeyName() + " para salvar e parar.");
     }
 
     private void startPlayback(String name) {
@@ -174,7 +190,7 @@ public final class RecorderController {
             try { latest = store.load(name); }
             catch (IOException | IllegalArgumentException exception) { message(exception.getMessage()); return; }
         }
-        if (latest == null) { message("Nenhuma gravacao. Use F6 primeiro."); return; }
+        if (latest == null) { message("Nenhuma gravacao. Use " + recordKeyName() + " primeiro."); return; }
 
         if (latest.dimension != mc.thePlayer.dimension) {
             message("Entre na mesma dimensao da gravacao para reproduzir."); return;
@@ -202,7 +218,8 @@ public final class RecorderController {
         releaseBindings();
         allowBackgroundSession();
         mode = Mode.PLAYING;
-        message("Reproduzindo " + recording.name + (loopEnabled ? " em loop" : "") + ". F8 ou Esc para parar; F9 alterna loop.");
+        message("Reproduzindo " + recording.name + (loopEnabled ? " em loop" : "") + ". "
+                + stopKeyName() + " ou Esc para parar; " + loopKeyName() + " alterna loop.");
         if (mc.thePlayer.getDistanceSq(recording.startX, recording.startY, recording.startZ) > 1.0) {
             message("Para repetir o percurso, comece em " + String.format(Locale.ROOT,
                     "X %.2f, Y %.2f, Z %.2f.", recording.startX, recording.startY, recording.startZ));
@@ -431,7 +448,8 @@ public final class RecorderController {
         String status = mode == Mode.RECORDING ? "GRAVANDO" : "REPRODUZINDO";
         String total = mode == Mode.PLAYING ? " / " + seconds(recording.frames.size()) + " s" : " s";
         String loop = mode == Mode.PLAYING && loopEnabled ? "  LOOP #" + playback.cycleNumber() : "";
-        mc.fontRendererObj.drawStringWithShadow(status + "  " + seconds(tick) + total + loop + "  [F8 parar | F9 loop]",
+        mc.fontRendererObj.drawStringWithShadow(status + "  " + seconds(tick) + total + loop
+                + "  [" + stopKeyName() + " parar | " + loopKeyName() + " loop]",
                 6, 6, mode == Mode.RECORDING ? 0xFF6666 : 0x66FF99);
     }
 
