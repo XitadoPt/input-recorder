@@ -1,6 +1,6 @@
 # Input Recorder — Forge 1.8.9
 
-Mod de cliente para gravar e reproduzir os controles do Minecraft: WASD (ou as teclas configuradas), pulo, agachar, sprint, movimento da câmera, cliques esquerdo/direito/meio, Q/Ctrl+Q, seleção da hotbar por números/roda e perspectiva F5.
+Mod de cliente para gravar e reproduzir o teclado completo dentro do Minecraft, incluindo atalhos de outros mods (por exemplo, R de um Auto Text), teclas mantidas, combinações com Ctrl/Shift/Alt, movimento da câmera, cliques esquerdo/direito/meio, seleção da hotbar e perspectiva.
 
 ## Controles
 

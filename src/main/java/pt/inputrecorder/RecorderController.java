@@ -46,6 +46,8 @@ public final class RecorderController {
             mc.gameSettings.keyBindCommand, mc.gameSettings.keyBindSmoothCamera};
     private final Field pressTime = ReflectionHelper.findField(KeyBinding.class, "pressTime", "field_151474_i");
     private final RecordingStore store;
+    private final KeyboardReplay keyboard = new KeyboardReplay();
+    private KeyboardReplay.Snapshot capturedKeyboard;
     private final int[] pendingPresses = new int[ACTIONS.length];
     private Mode mode = Mode.IDLE;
     private Recording latest, recording;
@@ -55,6 +57,7 @@ public final class RecorderController {
     private boolean loopEnabled;
     private MouseHelper previousMouse, playbackMouse;
     private boolean previousSmoothCamera;
+    private boolean previousPauseOnLostFocus;
     private int previousView;
     private Runnable pending;
 
@@ -110,13 +113,22 @@ public final class RecorderController {
     public List<String> list() throws IOException { return store.list(); }
     public void load(String name) throws IOException { latest = store.load(name); message("Carregada: " + name); }
 
-    private boolean ready() {
+    private boolean worldReady() {
         return mc.theWorld != null && mc.thePlayer != null && !mc.thePlayer.isDead
-                && mc.currentScreen == null && mc.inGameHasFocus && Display.isActive() && !mc.isGamePaused();
+                && mc.currentScreen == null && !mc.isGamePaused();
+    }
+
+    private boolean ready() {
+        return worldReady() && mc.inGameHasFocus && Display.isActive();
+    }
+
+    private void allowBackgroundSession() {
+        previousPauseOnLostFocus = mc.gameSettings.pauseOnLostFocus;
+        mc.gameSettings.pauseOnLostFocus = false;
     }
 
     private boolean sessionValid() {
-        return ready() && sessionWorld == mc.theWorld && sessionPlayer == mc.thePlayer
+        return worldReady() && sessionWorld == mc.theWorld && sessionPlayer == mc.thePlayer
                 && recording.dimension == mc.thePlayer.dimension;
     }
 
@@ -134,6 +146,12 @@ public final class RecorderController {
         try {
             if (store.exists(name)) { message("Esse nome ja existe. Escolha outro."); return; }
         } catch (IllegalArgumentException exception) { message(exception.getMessage()); return; }
+        try { keyboard.capture(this::isRecorderKey); }
+        catch (IllegalStateException exception) {
+            logger.error("Cannot capture full keyboard", exception);
+            message(exception.getMessage());
+            return;
+        }
         recording = new Recording();
         recording.name = name;
         recording.actions = ACTIONS.clone();
@@ -143,6 +161,7 @@ public final class RecorderController {
         recording.startZ = mc.thePlayer.posZ;
         sessionWorld = mc.theWorld;
         sessionPlayer = mc.thePlayer;
+        allowBackgroundSession();
         mode = Mode.RECORDING;
         message("Gravando " + name + ". F6 ou F8 para salvar e parar.");
     }
@@ -160,6 +179,15 @@ public final class RecorderController {
         if (latest.dimension != mc.thePlayer.dimension) {
             message("Entre na mesma dimensao da gravacao para reproduzir."); return;
         }
+        if (latest.hasKeyboard()) {
+            try { keyboard.start(this::isRecorderKey); }
+            catch (IllegalStateException exception) {
+                logger.error("Cannot replay full keyboard", exception);
+                message(exception.getMessage());
+                return;
+            }
+            KeyBinding.unPressAllKeys();
+        }
         recording = latest;
         sessionWorld = mc.theWorld;
         sessionPlayer = mc.thePlayer;
@@ -172,6 +200,7 @@ public final class RecorderController {
         previousView = mc.gameSettings.thirdPersonView;
         mc.gameSettings.smoothCamera = false;
         releaseBindings();
+        allowBackgroundSession();
         mode = Mode.PLAYING;
         message("Reproduzindo " + recording.name + (loopEnabled ? " em loop" : "") + ". F8 ou Esc para parar; F9 alterna loop.");
         if (mc.thePlayer.getDistanceSq(recording.startX, recording.startY, recording.startZ) > 1.0) {
@@ -184,8 +213,12 @@ public final class RecorderController {
         pending = null;
         Mode previousMode = mode;
         mode = Mode.IDLE;
+        if (previousMode != Mode.IDLE) mc.gameSettings.pauseOnLostFocus = previousPauseOnLostFocus;
 
         if (previousMode == Mode.PLAYING) {
+            try { keyboard.stop(); }
+            catch (IllegalStateException exception) { logger.error("Cannot restore keyboard", exception); }
+            if (recording.hasKeyboard()) KeyBinding.unPressAllKeys();
             releaseBindings();
             if (mc.mouseHelper == playbackMouse) mc.mouseHelper = previousMouse;
             mc.gameSettings.smoothCamera = previousSmoothCamera;
@@ -206,28 +239,59 @@ public final class RecorderController {
         recording = null;
         playback = null;
         playingFrame = captured = null;
+        capturedKeyboard = null;
         sessionWorld = sessionPlayer = null;
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public void onClientTick(TickEvent.ClientTickEvent event) {
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onClientTickStart(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.START) {
             Arrays.fill(pendingPresses, 0);
             captured = null;
-            if (mode != Mode.IDLE && !sessionValid()) { stop("Parado: menu, foco ou mundo mudou."); return; }
+            capturedKeyboard = null;
+            if (mode != Mode.IDLE && !sessionValid()) { stop("Parado: menu ou mundo mudou."); return; }
+            if (mode != Mode.IDLE) mc.gameSettings.pauseOnLostFocus = false;
 
+            if (mode == Mode.RECORDING) {
+                try { capturedKeyboard = keyboard.capture(this::isRecorderKey); }
+                catch (IllegalStateException exception) {
+                    logger.error("Keyboard capture failed", exception);
+                    stop("Falha ao gravar o teclado: " + exception.getMessage());
+                }
+            }
+            
             if (mode == Mode.PLAYING) {
+                if (recording.hasKeyboard() && keyboard.hasControlPress(
+                        key -> key == Keyboard.KEY_ESCAPE || key == stopKey.getKeyCode())) {
+                    stop("Parado.");
+                    return;
+                }
                 if (!playback.prepare(loopEnabled)) { stop("Reproducao concluida."); return; }
                 playingFrame = recording.frames.get(playback.frameIndex());
+                if (recording.hasKeyboard()) {
+                    try { keyboard.play(playingFrame); }
+                    catch (IllegalStateException exception) {
+                        logger.error("Keyboard playback failed", exception);
+                        stop("Falha ao reproduzir o teclado: " + exception.getMessage());
+                        return;
+                    }
+                }
                 applyPlaybackInputs();
-                for (int i = 0; i < playingFrame.presses[10]; i++) {
-                    if (!mc.thePlayer.isSpectator()) mc.thePlayer.dropOneItem(playingFrame.dropStack);
+                if (!recording.hasKeyboard() || bindings[10].getKeyCode() < 0) {
+                    for (int i = 0; i < playingFrame.presses[10]; i++) {
+                        if (!mc.thePlayer.isSpectator()) mc.thePlayer.dropOneItem(playingFrame.dropStack);
+                    }
                 }
                 setLook(playingFrame.yaw, playingFrame.pitch);
             }
             return;
         }
-        if (mode != Mode.IDLE && !sessionValid()) stop("Parado: menu, foco ou mundo mudou.");
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+        if (mode != Mode.IDLE && !sessionValid()) stop("Parado: menu ou mundo mudou.");
 
         if (mode == Mode.RECORDING && captured != null) {
             recording.frames.add(captured);
@@ -261,15 +325,18 @@ public final class RecorderController {
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.START || event.player != mc.thePlayer) return;
         
-        if (mode == Mode.RECORDING && sessionValid()) {
+        if (mode == Mode.RECORDING && sessionValid() && capturedKeyboard != null) {
             boolean[] held = new boolean[bindings.length];
             for (int i = 0; i < held.length; i++) held[i] = bindings[i].isKeyDown();
             captured = new Recording.Frame(mc.thePlayer.rotationYaw, mc.thePlayer.rotationPitch,
                     mc.thePlayer.inventory.currentItem, held, pendingPresses);
             captured.view = mc.gameSettings.thirdPersonView;
             captured.dropStack = GuiScreen.isCtrlKeyDown();
+            captured.keysHeld = capturedKeyboard.held;
+            captured.keyEvents = capturedKeyboard.events;
         } else if (mode == Mode.PLAYING && playingFrame != null) {
             mc.thePlayer.inventory.currentItem = playingFrame.slot;
+            if (recording.hasKeyboard()) setView(playingFrame.view);
             setLook(playingFrame.yaw, playingFrame.pitch);
         }
     }
@@ -278,7 +345,12 @@ public final class RecorderController {
     public void onKeyboard(InputEvent.KeyInputEvent event) {
         int key = Keyboard.getEventKey() == 0 ? Keyboard.getEventCharacter() + 256 : Keyboard.getEventKey();
         if (mode == Mode.RECORDING && Keyboard.getEventKeyState()) capturePress(key);
-        else if (mode == Mode.PLAYING && playingFrame != null) applyPlaybackInputs();
+        else if (mode == Mode.PLAYING && playingFrame != null && !recording.hasKeyboard()) applyPlaybackInputs();
+    }
+
+    private boolean isRecorderKey(int key) {
+        return key == Keyboard.KEY_ESCAPE || key == recordKey.getKeyCode() || key == playKey.getKeyCode()
+                || key == stopKey.getKeyCode() || key == loopKey.getKeyCode() || key == menuKey.getKeyCode();
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -295,20 +367,24 @@ public final class RecorderController {
 
     private void applyPlaybackInputs() {
         for (int i = 0; i < bindings.length; i++) {
+            // Format 2 keyboard actions are handled by Minecraft's real event loop once.
+            if (recording.hasKeyboard() && bindings[i].getKeyCode() >= 0) continue;
             KeyBinding.setKeyBindState(bindings[i].getKeyCode(), playingFrame.held[i]);
             setPresses(bindings[i], i == 10 ? 0 : playingFrame.presses[i]);
         }
-        for (KeyBinding binding : blocked) {
-            KeyBinding.setKeyBindState(binding.getKeyCode(), false);
-            setPresses(binding, 0);
-        }
-        for (KeyBinding binding : mc.gameSettings.keyBindsHotbar) {
-            KeyBinding.setKeyBindState(binding.getKeyCode(), false);
-            setPresses(binding, 0);
+        if (!recording.hasKeyboard()) {
+            for (KeyBinding binding : blocked) {
+                KeyBinding.setKeyBindState(binding.getKeyCode(), false);
+                setPresses(binding, 0);
+            }
+            for (KeyBinding binding : mc.gameSettings.keyBindsHotbar) {
+                KeyBinding.setKeyBindState(binding.getKeyCode(), false);
+                setPresses(binding, 0);
+            }
         }
         mc.thePlayer.inventory.currentItem = playingFrame.slot;
         mc.gameSettings.smoothCamera = false;
-        setView(playingFrame.view);
+        if (!recording.hasKeyboard()) setView(playingFrame.view);
     }
 
     private void setPresses(KeyBinding binding, int count) {
@@ -338,6 +414,7 @@ public final class RecorderController {
 
     @SubscribeEvent
     public void onRenderTick(TickEvent.RenderTickEvent event) {
+        if (event.phase == TickEvent.Phase.START && mode != Mode.IDLE) mc.gameSettings.pauseOnLostFocus = false;
         if (event.phase != TickEvent.Phase.START || mode != Mode.PLAYING || playingFrame == null || mc.thePlayer == null) return;
         int nextIndex = playback.previewIndex(loopEnabled);
         Recording.Frame next = recording.frames.get(nextIndex);

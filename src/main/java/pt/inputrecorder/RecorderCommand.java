@@ -41,7 +41,7 @@ public final class RecorderCommand extends CommandBase {
             } else {
                 controller.message("F6 gravar/salvar | F7 reproduzir | F8 parar | F9 loop | F10 menu.");
                 controller.message(getCommandUsage(sender));
-                controller.message("Grava o jogo a 20 ticks/s; abrir menus ou perder foco encerra a sessao.");
+                controller.message("Grava o jogo a 20 ticks/s, mesmo sem foco; abrir menus ou sair do mundo encerra a sessao.");
             }
         } catch (IOException | IllegalArgumentException exception) { controller.message(exception.getMessage()); }
     }

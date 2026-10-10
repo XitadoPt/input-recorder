@@ -2,7 +2,7 @@
   {
     "modid": "inputrecorder",
     "name": "Input Recorder",
-    "description": "Grava e reproduz camera, movimentos e cliques. F6 gravar, F7 reproduzir, F8 parar, F9 loop, F10 menu. /rec",
+    "description": "Grava e reproduz teclado completo, atalhos de outros mods, camera, movimentos e cliques. F6 gravar, F7 reproduzir, F8 parar, F9 loop, F10 menu. /rec",
     "version": "${version}",
     "mcversion": "1.8.9",
     "authorList": ["Xitado"],

@@ -6,7 +6,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.client.ClientCommandHandler;
 
-@Mod(modid = InputRecorderMod.MOD_ID, name = "Input Recorder", version = "1.3.1",
+@Mod(modid = InputRecorderMod.MOD_ID, name = "Input Recorder", version = "1.1.0",
         clientSideOnly = true, acceptedMinecraftVersions = "[1.8.9]",
         acceptableRemoteVersions = "*")
 public final class InputRecorderMod {

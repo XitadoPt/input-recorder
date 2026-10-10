@@ -74,35 +74,44 @@ public final class RecorderScreen extends GuiScreen {
             }
         } catch (IOException exception) { names.clear(); filtered.clear(); selected = null; preview = null; setStatus(exception.getMessage(), true); }
     }
+
     private void filter() {
         filtered = new ArrayList<String>(); String query = search.getText().toLowerCase(Locale.ROOT);
         for (String name : names) if (name.toLowerCase(Locale.ROOT).contains(query)) filtered.add(name);
         clampScroll();
     }
+
     private int maxScroll() { return Math.max(0, filtered.size() * rowHeight - Math.max(0, listBottom - listTop)); }
+    
     private void clampScroll() { scroll = Math.max(0, Math.min(scroll, maxScroll())); }
+
     private void select(String name) {
         selected = name;
         try { preview = controller.inspect(name); setStatus("Duplo clique para carregar. F8 interrompe a reproducao.", false); }
         catch (IOException | IllegalArgumentException exception) { preview = null; setStatus("Arquivo invalido: " + exception.getMessage(), true); }
     }
+
     private void setStatus(String value, boolean error) { status = value == null ? "Falha ao acessar a gravacao." : value; statusError = error; }
+    
     private boolean loadSelected() {
         if (selected == null || preview == null) return false;
         try { controller.load(selected); preview = controller.getLoadedRecording(); setStatus("Carregada: " + selected, false); return true; }
         catch (IOException | IllegalArgumentException exception) { setStatus(exception.getMessage(), true); return false; }
     }
+
     private void play() {
         if (mc.thePlayer == null || mc.theWorld == null || mc.thePlayer.isDead) { setStatus("Entre em um mundo para reproduzir.", true); return; }
         if (!loadSelected()) return;
         if (preview.dimension != mc.thePlayer.dimension) { setStatus("Entre na mesma dimensao da gravacao.", true); return; }
         closeMenu(); controller.requestPlay(null);
     }
+
     private void record() {
         String name = recordName.getText().trim();
         try { controller.validateNewName(name.isEmpty() ? null : name); closeMenu(); controller.requestRecord(name.isEmpty() ? null : name); }
         catch (IOException | IllegalArgumentException exception) { setStatus(exception.getMessage(), true); recordName.setFocused(true); }
     }
+
     private void closeMenu() { mc.displayGuiScreen(null); mc.setIngameFocus(); }
 
     @Override public void drawScreen(int mouseX, int mouseY, float partialTicks) {
@@ -116,6 +125,7 @@ public final class RecorderScreen extends GuiScreen {
             GlStateManager.color(1, 1, 1, 1); GlStateManager.enableTexture2D(); GlStateManager.enableAlpha(); GlStateManager.enableDepth();
         }
     }
+
     private void drawContent(int mouseX, int mouseY, float partialTicks) {
         if (dragging) { px = mouseX - dragX; py = mouseY - dragY; clampPanel(); layout(); }
         if (draggingScroll && maxScroll() > 0) scroll = (int)(Math.max(0, Math.min(1f, (mouseY - listTop) / (float)(listBottom - listTop))) * maxScroll());
@@ -149,6 +159,7 @@ public final class RecorderScreen extends GuiScreen {
         input(recordName, "Nome opcional...", px + 16, iy, pw - bw - 40, ih);
         button("Gravar", px + pw - bw - 16, iy, bw, ih, mouseX, mouseY, true, 2, delta, true);
     }
+
     private void drawRows(int mx, int my) {
         int x = px + 16, w = split - px - 34, viewHeight = listBottom - listTop;
         scissor(x - 1, listTop, w + 6, Math.max(0, viewHeight));
@@ -172,8 +183,11 @@ public final class RecorderScreen extends GuiScreen {
             ClickGuiRenderer.rounded(split - 12, top, 3, thumb, 1.5f, ACCENT);
         }
     }
+
     private int actionY() { return bodyTop + (compact ? 54 : 90); }
+
     private int loopY() { return bodyTop + (compact ? 86 : 132); }
+
     private void drawDetails(int mx, int my, float delta) {
         int x = split + 16, w = px + pw - 16 - x;
         ui.small.draw("SELECIONADA", x, bodyTop, MUTED);
@@ -206,21 +220,27 @@ public final class RecorderScreen extends GuiScreen {
             if (y + 48 < footer - 24 && loaded != null && loaded.name.equals(selected)) ui.small.draw("Pronta para F7", x, y + 36, ACCENT);
         }
     }
+
     private void button(String label, int x, int y, int w, int h, int mx, int my, boolean enabled, int id, float delta, boolean primary) {
         boolean hot = enabled && inside(mx, my, x, y, w, h); hover[id] += ((hot ? 1 : 0) - hover[id]) * delta;
         ClickGuiRenderer.rounded(x, y, w, h, 6, enabled ? mix(primary ? 0xFF8A66EB : 0xFF2A2D40, primary ? 0xFFAB88FF : 0xFF3D4057, hover[id]) : 0xFF222430);
         ui.regular.centered(label, x + w / 2f, y + (h - 14) / 2f, enabled ? 0xFFFFFFFF : 0xFF686D84);
     }
+
     private static int mix(int a, int b, float t) {
         return 0xFF000000 | ((int)((a >> 16 & 255) + ((b >> 16 & 255) - (a >> 16 & 255)) * t) << 16)
                 | ((int)((a >> 8 & 255) + ((b >> 8 & 255) - (a >> 8 & 255)) * t) << 8) | (int)((a & 255) + ((b & 255) - (a & 255)) * t);
     }
+
     private static boolean inside(int mx, int my, int x, int y, int w, int h) { return mx >= x && mx < x + w && my >= y && my < y + h; }
+    
     private static String dimension(int d) { return d == 0 ? "Overworld" : d == -1 ? "Nether" : d == 1 ? "End" : "Dim " + d; }
+    
     private int textStart(GuiTextField field, int space) {
         int start = 0, cursor = field.getCursorPosition();
         while (start < cursor && ui.regular.width(field.getText().substring(start, cursor)) > space) start++; return start;
     }
+
     private void input(GuiTextField field, String placeholder, int x, int y, int w, int h) {
         field.xPosition = x; field.yPosition = y; field.width = w; field.height = h;
         ClickGuiRenderer.rounded(x, y, w, h, 6, field.isFocused() ? 0xFF6B519F : 0xFF2D3040);
@@ -235,6 +255,7 @@ public final class RecorderScreen extends GuiScreen {
         ui.regular.draw(value.substring(start, end), x + 9, ty, TEXT);
         if (field.isFocused() && System.currentTimeMillis() / 500 % 2 == 0) ClickGuiRenderer.rounded(x + 9 + ui.regular.width(value.substring(start, field.getCursorPosition())), ty + 2, 1, 11, 0, ACCENT);
     }
+
     private void focusInput(GuiTextField field, int mx, int my) {
         boolean hit = inside(mx, my, field.xPosition, field.yPosition, field.width, field.height); field.setFocused(hit);
         if (!hit) return;
@@ -243,10 +264,12 @@ public final class RecorderScreen extends GuiScreen {
         while (cursor < value.length() && ui.regular.width(value.substring(start, cursor + 1)) < target) cursor++;
         field.setCursorPosition(cursor);
     }
+
     private void scissor(int x, int y, int w, int h) {
         int factor = new ScaledResolution(mc).getScaleFactor(); GL11.glEnable(GL11.GL_SCISSOR_TEST);
         GL11.glScissor(x * factor, mc.displayHeight - (y + h) * factor, w * factor, h * factor);
     }
+
     @Override protected void mouseClicked(int mx, int my, int button) throws IOException {
         if (button != 0) return;
         focusInput(search, mx, my); focusInput(recordName, mx, my);
@@ -270,12 +293,14 @@ public final class RecorderScreen extends GuiScreen {
         int bw = compact ? 88 : 114;
         if (inside(mx, my, px + pw - bw - 16, footer + (compact ? 16 : 21), bw, compact ? 23 : 26)) record();
     }
+
     @Override protected void mouseReleased(int mx, int my, int state) { dragging = draggingScroll = false; }
     @Override public void handleMouseInput() throws IOException {
         super.handleMouseInput(); int wheel = Mouse.getEventDWheel();
         int mx = Mouse.getEventX() * width / mc.displayWidth, my = height - Mouse.getEventY() * height / mc.displayHeight - 1;
         if (wheel != 0 && inside(mx, my, px, listTop, split - px, listBottom - listTop)) { scroll += wheel > 0 ? -rowHeight : rowHeight; clampScroll(); }
     }
+
     @Override protected void keyTyped(char typedChar, int keyCode) throws IOException {
         if (keyCode == Keyboard.KEY_ESCAPE) { closeMenu(); return; }
         if (keyCode == Keyboard.KEY_TAB) { boolean was = search.isFocused(); search.setFocused(!was); recordName.setFocused(was); return; }
@@ -283,6 +308,8 @@ public final class RecorderScreen extends GuiScreen {
         if (search.isFocused()) { if (search.textboxKeyTyped(typedChar, keyCode)) { scroll = 0; filter(); } }
         else if (recordName.isFocused()) recordName.textboxKeyTyped(typedChar, keyCode);
     }
+
     @Override public void onGuiClosed() { dragging = draggingScroll = false; Keyboard.enableRepeatEvents(false); if (ui != null) { ui.close(); ui = null; } }
+    
     @Override public boolean doesGuiPauseGame() { return false; }
 }
