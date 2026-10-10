@@ -1,0 +1,6 @@
+key.categories.inputrecorder=Input Recorder
+key.inputrecorder.record=Iniciar / parar gravacao
+key.inputrecorder.play=Reproduzir gravacao
+key.inputrecorder.stop=Parar gravacao / reproducao
+key.inputrecorder.loop=Ativar / desativar reproducao em loop
+key.inputrecorder.menu=Abrir menu de gravacoes

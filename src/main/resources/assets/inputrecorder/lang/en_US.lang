@@ -1,0 +1,6 @@
+key.categories.inputrecorder=Input Recorder
+key.inputrecorder.record=Start / stop recording
+key.inputrecorder.play=Play recording
+key.inputrecorder.stop=Stop recorder / playback
+key.inputrecorder.loop=Toggle playback loop
+key.inputrecorder.menu=Open recordings menu
